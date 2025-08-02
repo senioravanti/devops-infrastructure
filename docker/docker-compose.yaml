@@ -1,0 +1,25 @@
+name: devops-infrastructure
+
+volumes:
+  devops-infrastructure-portainer-data:
+
+services:
+  portainer:
+    image: 'portainer/portainer-ce:lts'
+    container_name: devops-infrastructure-portainer
+
+    restart: unless-stopped
+
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - 'devops-infrastructure-portainer-data:/data'
+      - '/etc/letsencrypt/live/senioravanti.ru/fullchain.pem:/certs/fullchain.pem:ro'
+      - '/etc/letsencrypt/live/senioravanti.ru/privkey.pem:/certs/privkey.pem:ro'
+
+    command: >
+      --sslcert /certs/fullchain.pem
+      --sslkey /certs/privkey.pem
+
+    ports:
+      - '8000:8000'
+      - '9443:9443'
