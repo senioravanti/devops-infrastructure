@@ -2,6 +2,7 @@ name: devops-infrastructure
 
 volumes:
   devops-infrastructure-portainer-data:
+  devops-infrastructure-vault-data:
 
 services:
   portainer:
@@ -23,3 +24,31 @@ services:
     ports:
       - '8000:8000'
       - '9443:9443'
+
+  vault:
+    image: 'hashicorp/vault:1.20'
+    container_name: devops-infrastructure-vault
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: [ "CMD", "vault", "status", "-tls-skip-verify", "-address=https://127.0.0.1:8200" ]
+      interval: 8s
+      timeout: 12s
+      retries: 8
+      start_period: 16s
+
+    volumes:
+      - 'devops-infrastructure-vault-data:/vault/file'
+      - './vault/config/:/vault/config/'
+      - '/etc/ssl/private/senioravanti.ru/vault/fullchain.pem:/etc/ssl/private/vault/fullchain.pem:ro'
+      - '/etc/ssl/private/senioravanti.ru/vault/privkey.pem:/etc/ssl/private/vault/privkey.pem:ro'
+
+    cap_add:
+      - IPC_LOCK
+
+    command: 'server'
+
+    ports:
+      - '${VAULT_SERVER_EXTERNAL_PORT}:8200'
+      - '${VAULT_CLIENT_EXTERNAL_PORT}:8201'
