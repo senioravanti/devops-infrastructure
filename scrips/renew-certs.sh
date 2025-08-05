@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 if [ ! -d /opt/certbot/ ]; then
   echo 'installing certbot ...'
@@ -14,7 +14,6 @@ certbot renew -q
 
 SSL_PATHS=(
   '/etc/ssl/private/senioravanti.ru/postgres'
-  '/etc/ssl/private/senioravanti.ru/vault'
 )
 
 copy_certs() {
@@ -23,10 +22,10 @@ copy_certs() {
 
   case "$SSL_PATH" in
   "${SSL_PATHS[0]}") SSL_OWNER='70:70';;
-  "${SSL_PATHS[1]}") SSL_OWNER='100:1000';;
   *) echo 'unknown ssl path'; exit 1;;
   esac
 
+  echo "copy cert $SSL_PATH ..."
   cp /etc/letsencrypt/live/senioravanti.ru/{privkey.pem,fullchain.pem} "${SSL_PATH}/"
   
   chmod 600 "${SSL_PATH}/privkey.pem"

@@ -1,27 +1,22 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 ENV_FILES=(
-	"./.env"
+	'./.env'
+	'./environment/.env.minio'
 )
 
-function create_env_file() {
+create_env_file() {
   case "$1" in
-  "${ENV_FILES[0]}") 
+  "${ENV_FILES[0]}")
+	DOMAIN=senioravanti.ru
   cat <<-EOL > "${ENV_FILES[0]}"
-		DOMAIN=senioravanti.ru
-
-		# vault
-		VAULT_SERVER_EXTERNAL_PORT=8200
-		VAULT_CLIENT_EXTERNAL_PORT=8201
-		VAULT_SECRET_DIR=./vault/secrets
-		VAULT_SCRIPTS_DIR=./vault/scripts
-		VAULT_BASE_URI=http://vault:8200/v1/cubbyhole
-
 		# ssl
 		SSL_ROOT_CERT_PATH='/etc/ssl/certs/isrgrootx1.pem'
+		
 		SSL_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 		SSL_KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+
 		SSL_POSTGRES_CERT_PATH="/etc/ssl/private/${DOMAIN}/postgres/fullchain.pem"
 		SSL_POSTGRES_KEY_PATH="/etc/ssl/private/${DOMAIN}/postgres/privkey.pem"
 
@@ -30,14 +25,15 @@ function create_env_file() {
 		POSTGRES_BOOTSTRAP_PASSWORD=bootstrap_password
 		POSTGRES_EXTERNAL_PORT=5432
 
-		# minio
-		MINIO_ROOT_USER=bootcups
-		MINIO_BACKEND_EXTERNAL_PORT=9090
-		MINIO_FRONTENT_EXTERNAL_PORT=9091
-
 		# gitlab runner
 		GITLAB_VERSION=18.2.0
 		RUNNER_TOKEN=''
+EOL
+	;;
+	"${ENV_FILES[1]}")
+  cat <<-EOL > "${ENV_FILES[1]}"
+		MINIO_ROOT_USER=minioadmin
+		MINIO_ROOT_PASSWORD=$(openssl rand -base64 24)
 EOL
 	;;
   *) echo 'unknown file name' ;;
