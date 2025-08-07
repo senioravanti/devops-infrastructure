@@ -75,14 +75,17 @@ services:
     
     volumes:
       - 'devops-infrastructure-mongodb-data:/data/db'
-      - './mongodb/config/mongod.conf:/etc/mongod.conf:ro'
       - "${SSL_MONGODB_CERT_PATH}/cert.pem:/etc/ssl/mongodb/cert.pem:ro"
       - "${SSL_MONGODB_CERT_PATH}/fullchain.pem:/etc/ssl/mongodb/fullchain.pem:ro"
 
     env_file:
       - './environment/.env.mongodb'
 
-    command: -f /etc/mongod.conf
+    command: >
+      --auth --tlsMode requireTLS
+      --tlsCertificateKeyFile /etc/ssl/mongodb/cert.pem
+      --tlsCAFile /etc/ssl/mongodb/fullchain.pem
+      --tlsAllowConnectionsWithoutCertificates
 
     ports:
       - '27017:27017'

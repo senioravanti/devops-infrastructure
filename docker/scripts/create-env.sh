@@ -40,8 +40,8 @@ EOL
 	;;
 	"${ENV_FILES[2]}")
   cat <<-EOL > "${ENV_FILES[2]}"
-		MONGODB_INITDB_ROOT_USERNAME=mongoadmin
-		MONGODB_INITDB_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
+		MONGO_INITDB_ROOT_USERNAME=mongoadmin
+		MONGO_INITDB_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
 EOL
 	;;
   *) echo 'unknown file name' ;;
