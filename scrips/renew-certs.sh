@@ -12,32 +12,35 @@ fi
 
 certbot renew -q
 
-SSL_PATHS=(
-  '/etc/ssl/private/senioravanti.ru/postgres'
-)
-
-copy_certs() {
+process_certs() {
   local SSL_PATH="$1"
-  local SSL_OWNER
-
-  case "$SSL_PATH" in
-  "${SSL_PATHS[0]}") SSL_OWNER='70:70';;
-  *) echo 'unknown ssl path'; exit 1;;
-  esac
+  local SSL_OWNER="$2"
+  local IS_MERGE="$3"
 
   echo "copy cert $SSL_PATH ..."
-  cp /etc/letsencrypt/live/senioravanti.ru/{privkey.pem,fullchain.pem} "${SSL_PATH}/"
-  
-  chmod 600 "${SSL_PATH}/privkey.pem"
+
+  cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "${SSL_PATH}/"
   chmod 644 "${SSL_PATH}/fullchain.pem"
-  
-  chown "$SSL_OWNER" "${SSL_PATH}/privkey.pem"
+    
+  if [ "$IS_MERGE" == true ]; then
+    cp "/etc/letsencrypt/live/${DOMAIN}/cert.pem" "${SSL_PATH}/"
+    cat "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" >> "${SSL_PATH}/cert.pem"
+    chmod 600 "${SSL_PATH}/cert.pem"
+  else
+    cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" "${SSL_PATH}/"
+    chmod 600 "${SSL_PATH}/privkey.pem"
+  fi
+
+  chown -R "$SSL_OWNER" "${SSL_PATH}/"
 }
 
-for IT in "${SSL_PATHS[@]}"; do
-  if [ ! -d "$IT" ]; then
-    echo "creating ${IT}/ ..."
-    mkdir "${IT}/"
-    copy_certs "$IT"
+while IFS=';' read -r SSL_PATH SSL_OWNER IS_MERGE; do
+  if [ ! -d "$SSL_PATH" ]; then
+    echo "creating ${SSL_PATH}/ ..."
+    mkdir "${SSL_PATH}/"
+    process_certs "$SSL_PATH" "$SSL_OWNER" "$IS_MERGE"
   fi
-done
+done <<-EOL
+	/etc/ssl/private/${DOMAIN}/postgres;70:70;false
+	/etc/ssl/private/${DOMAIN}/mongodb;999:999;true
+EOL

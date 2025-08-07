@@ -3,6 +3,7 @@ name: devops-infrastructure
 volumes:
   devops-infrastructure-portainer-data:
   devops-infrastructure-s3-data:
+  devops-infrastructure-mongodb-data:
 
 services:
   portainer:
@@ -51,7 +52,7 @@ services:
     image: 'nginx:1.29.0-alpine3.22'
     container_name: 'devops-infrastructure-webserver'
 
-    restart: always
+    restart: unless-stopped
 
     depends_on:
       minio:
@@ -59,9 +60,29 @@ services:
 
     volumes:
       - './nginx/config/nginx.conf:/etc/nginx/nginx.conf:ro'
-      - '${SSL_CERT_PATH}:/etc/ssl/private/nginx/fullchain.pem'
-      - '${SSL_KEY_PATH}:/etc/ssl/private/nginx/privkey.pem'
+      - "${SSL_CERT_PATH}:/etc/ssl/private/nginx/fullchain.pem"
+      - "${SSL_KEY_PATH}:/etc/ssl/private/nginx/privkey.pem"
 
     ports:
       - '9090:9090'
       - '9091:9091'
+
+  mongodb:
+    image: "mongo:${MONGODB_VERSION}-noble"
+    container_name: 'devops-infrastructure-mongodb'
+
+    restart: 'on-failure:3'
+    
+    volumes:
+      - 'devops-infrastructure-mongodb-data:/data/db'
+      - './mongodb/config/mongod.conf:/etc/mongod.conf:ro'
+      - "${SSL_MONGODB_CERT_PATH}/cert.pem:/etc/ssl/mongodb/cert.pem:ro"
+      - "${SSL_MONGODB_CERT_PATH}/fullchain.pem:/etc/ssl/mongodb/fullchain.pem:ro"
+
+    env_file:
+      - './environment/.env.mongodb'
+
+    command: -f /etc/mongod.conf
+
+    ports:
+      - '27017:27017'

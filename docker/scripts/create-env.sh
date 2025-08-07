@@ -4,6 +4,7 @@ set -eu
 ENV_FILES=(
 	'./.env'
 	'./environment/.env.minio'
+	'./environment/.env.mongodb'
 )
 
 create_env_file() {
@@ -20,20 +21,27 @@ create_env_file() {
 		SSL_POSTGRES_CERT_PATH="/etc/ssl/private/${DOMAIN}/postgres/fullchain.pem"
 		SSL_POSTGRES_KEY_PATH="/etc/ssl/private/${DOMAIN}/postgres/privkey.pem"
 
+		SSL_MONGODB_CERT_PATH="/etc/ssl/private/${DOMAIN}/mongodb/cert.pem"
+
 		# postgres
 		POSTGRES_TAG=17.5-alpine3.22
 		POSTGRES_BOOTSTRAP_PASSWORD=bootstrap_password
 		POSTGRES_EXTERNAL_PORT=5432
 
-		# gitlab runner
-		GITLAB_VERSION=18.2.0
-		RUNNER_TOKEN=''
+		# mongodb
+		MONGODB_VERSION=8.0.12
 EOL
 	;;
 	"${ENV_FILES[1]}")
   cat <<-EOL > "${ENV_FILES[1]}"
 		MINIO_ROOT_USER=minioadmin
-		MINIO_ROOT_PASSWORD=$(openssl rand -base64 24)
+		MINIO_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
+EOL
+	;;
+	"${ENV_FILES[2]}")
+  cat <<-EOL > "${ENV_FILES[2]}"
+		MONGODB_INITDB_ROOT_USERNAME=mongoadmin
+		MONGODB_INITDB_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
 EOL
 	;;
   *) echo 'unknown file name' ;;
