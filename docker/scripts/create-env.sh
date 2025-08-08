@@ -5,7 +5,13 @@ ENV_FILES=(
 	'./.env'
 	'./environment/.env.minio'
 	'./environment/.env.mongodb'
+	'./environment/.env.redis'
 )
+
+gen_url_safe_password() {
+	local PASSWORD_LENGTH="$1"
+	openssl rand -base64 "$PASSWORD_LENGTH" | tr '+/' '-_' | tr -d '='
+}
 
 create_env_file() {
   case "$1" in
@@ -13,15 +19,9 @@ create_env_file() {
 	DOMAIN=senioravanti.ru
   cat <<-EOL > "${ENV_FILES[0]}"
 		# ssl
-		SSL_ROOT_CERT_PATH='/etc/ssl/certs/isrgrootx1.pem'
-		
-		SSL_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
-		SSL_KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
-
-		SSL_POSTGRES_CERT_PATH="/etc/ssl/private/${DOMAIN}/postgres/fullchain.pem"
-		SSL_POSTGRES_KEY_PATH="/etc/ssl/private/${DOMAIN}/postgres/privkey.pem"
-
-		SSL_MONGODB_CERT_PATH="/etc/ssl/private/${DOMAIN}/mongodb/cert.pem"
+		SSL_LETSENCRYPT_CA_PATH='/etc/ssl/certs/isrgrootx1.pem'		
+		SSL_LETSENCRYPT_PATH="/etc/letsencrypt/live/${DOMAIN}"
+		SSL_PRIVATE_PATH="/etc/ssl/private/${DOMAIN}"
 
 		# postgres
 		POSTGRES_TAG=17.5-alpine3.22
@@ -29,19 +29,28 @@ create_env_file() {
 		POSTGRES_EXTERNAL_PORT=5432
 
 		# mongodb
-		MONGODB_VERSION=8.0.12
+		MONGO_VERSION=8.0.12
+
+		# redis
+		REDIS_VERSION=8.2.0
 EOL
 	;;
 	"${ENV_FILES[1]}")
   cat <<-EOL > "${ENV_FILES[1]}"
 		MINIO_ROOT_USER=minioadmin
-		MINIO_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
+		MINIO_ROOT_PASSWORD='$(gen_url_safe_password 24)'
 EOL
 	;;
 	"${ENV_FILES[2]}")
   cat <<-EOL > "${ENV_FILES[2]}"
 		MONGO_INITDB_ROOT_USERNAME=mongoadmin
-		MONGO_INITDB_ROOT_PASSWORD=\'$(openssl rand -base64 24)\'
+		MONGO_INITDB_ROOT_PASSWORD='$(gen_url_safe_password 24)'
+		MONGO_INITDB_DATABASE=admin
+EOL
+	;;
+	"${ENV_FILES[3]}")
+  cat <<-EOL > "${ENV_FILES[3]}"
+		REDIS_PASSWORD='$(gen_url_safe_password 24)'
 EOL
 	;;
   *) echo 'unknown file name' ;;

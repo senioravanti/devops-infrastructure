@@ -4,6 +4,7 @@ volumes:
   devops-infrastructure-portainer-data:
   devops-infrastructure-s3-data:
   devops-infrastructure-mongodb-data:
+  devops-infrastructure-redis-data:
 
 services:
   portainer:
@@ -15,8 +16,7 @@ services:
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'devops-infrastructure-portainer-data:/data'
-      - "${SSL_CERT_PATH}:/certs/fullchain.pem:ro"
-      - "${SSL_KEY_PATH}:/certs/privkey.pem:ro"
+      - "${SSL_LETSENCRYPT_PATH}:/certs:ro"
 
     command: >
       --sslcert /certs/fullchain.pem
@@ -33,7 +33,10 @@ services:
     restart: 'on-failure:3'
 
     healthcheck:
-      test: [ "CMD", "curl", "-sSi", "http://127.0.0.1:9000/minio/health/live" ]
+      test: [ "CMD", 
+        "curl", "-sSi",
+        "http://127.0.0.1:9000/minio/health/live"
+      ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,8 +63,7 @@ services:
 
     volumes:
       - './nginx/config/nginx.conf:/etc/nginx/nginx.conf:ro'
-      - "${SSL_CERT_PATH}:/etc/ssl/private/nginx/fullchain.pem"
-      - "${SSL_KEY_PATH}:/etc/ssl/private/nginx/privkey.pem"
+      - "${SSL_LETSENCRYPT_PATH}:/etc/ssl/nginx:ro"
 
     ports:
       - '9090:9090'
@@ -73,19 +75,45 @@ services:
 
     restart: 'on-failure:3'
     
+    healthcheck:
+      test: [ "CMD-SHELL", 
+        "mongosh", "mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@senioravanti.ru:27017/",
+        "--eval", "db.runCommand(\"ping\").ok", "--quiet"
+      ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+
     volumes:
       - 'devops-infrastructure-mongodb-data:/data/db'
-      - "${SSL_MONGODB_CERT_PATH}/cert.pem:/etc/ssl/mongodb/cert.pem:ro"
-      - "${SSL_MONGODB_CERT_PATH}/fullchain.pem:/etc/ssl/mongodb/fullchain.pem:ro"
+      - './mongodb/scripts/docker-mongodb-entrypoint.sh:/usr/local/bin/docker-mongodb-entrypoint.sh'
+      - "${SSL_PRIVATE_PATH}/mongodb:/etc/ssl/mongodb:ro"
 
     env_file:
       - './environment/.env.mongodb'
 
-    command: >
-      --auth --tlsMode requireTLS
-      --tlsCertificateKeyFile /etc/ssl/mongodb/cert.pem
-      --tlsCAFile /etc/ssl/mongodb/fullchain.pem
-      --tlsAllowConnectionsWithoutCertificates
+    command: 'docker-mongodb-entrypoint.sh'
 
     ports:
       - '27017:27017'
+
+  redis:
+    image: "redis:${REDIS_VERSION}-alpine3.22"
+    container_name: 'devops-infrastructure-redis'
+
+    restart: 'on-failure:3'
+
+    env_file:
+      - './environment/.env.redis'
+
+    volumes:
+      - 'devops-infrastructure-redis-data:/data'
+      - './redis/scripts/docker-redis-entrypoint.sh:/usr/local/bin/docker-redis-entrypoint.sh'
+      - "${SSL_PRIVATE_PATH}/redis:/etc/ssl/redis:ro"
+      - "${SSL_LETSENCRYPT_CA_PATH}:/etc/ssl/certs/isrgrootx1.pem:ro"
+
+    command: 'docker-redis-entrypoint.sh'
+
+    ports:
+      - '6379:6379'
