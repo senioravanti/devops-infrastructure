@@ -5,7 +5,7 @@ ENV_FILES=(
 	'./.env'
 	'./environment/.env.minio'
 	'./environment/.env.mongodb'
-	'./environment/.env.redis'
+	'./environment/.env.valkey'
 )
 
 gen_url_safe_password() {
@@ -31,8 +31,8 @@ create_env_file() {
 		# mongodb
 		MONGO_VERSION=8.0.12
 
-		# redis
-		REDIS_VERSION=8.2.0
+		# valkey
+		VALKEY_VERSION=8.1.3
 EOL
 	;;
 	"${ENV_FILES[1]}")
@@ -50,7 +50,7 @@ EOL
 	;;
 	"${ENV_FILES[3]}")
   cat <<-EOL > "${ENV_FILES[3]}"
-		REDIS_PASSWORD='$(gen_url_safe_password 24)'
+		VALKEY_PASSWORD='$(gen_url_safe_password 24)'
 EOL
 	;;
   *) echo 'unknown file name' ;;

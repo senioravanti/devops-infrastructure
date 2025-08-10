@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -e
 
 if [ ! -d /opt/certbot/ ]; then
   echo 'installing certbot ...'
@@ -52,5 +52,5 @@ while IFS=';' read -r SSL_PATH SSL_OWNER IS_MERGE; do
 done <<-EOL
 	/etc/ssl/private/${DOMAIN}/postgres;70:70;false
 	/etc/ssl/private/${DOMAIN}/mongodb;999:999;true
-	/etc/ssl/private/${DOMAIN}/redis;999:1000;false
+	/etc/ssl/private/${DOMAIN}/valkey;999:1000;false
 EOL
