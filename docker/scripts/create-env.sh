@@ -6,6 +6,7 @@ ENV_FILES=(
 	'./environment/.env.minio'
 	'./environment/.env.mongodb'
 	'./environment/.env.valkey'
+	'./environment/.env.postgres'
 )
 
 gen_url_safe_password() {
@@ -51,6 +52,13 @@ EOL
 	"${ENV_FILES[3]}")
   cat <<-EOL > "${ENV_FILES[3]}"
 		VALKEY_PASSWORD='$(gen_url_safe_password 24)'
+EOL
+	;;
+		"${ENV_FILES[4]}")
+  cat <<-EOL > "${ENV_FILES[4]}"
+		POSTGRES_DB=postgres
+		POSTGRES_USER=postgres
+		POSTGRES_PASSWORD='$(gen_url_safe_password 24)'
 EOL
 	;;
   *) echo 'unknown file name' ;;

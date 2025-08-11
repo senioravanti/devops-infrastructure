@@ -5,6 +5,7 @@ volumes:
   devops-infrastructure-s3-data:
   devops-infrastructure-mongodb-data:
   devops-infrastructure-valkey-data:
+  devops-infrastructure-postgres-data:
 
 services:
   portainer:
@@ -123,3 +124,34 @@ services:
 
     ports:
       - '6379:6379'
+
+  postgres:
+    image: "postgres:$POSTGRES_TAG"
+    container_name: 'devops-infrastructure-postgres'
+
+    restart: 'on-failure:3'
+
+    shm_size: 256mb
+
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+    volumes:
+      - 'devops-infrastructure-postgres-data:/var/lib/postgresql/data'
+      
+      - './postgres/config/postgresql.conf:/usr/local/share/postgresql/postgresql.conf'
+      - './postgres/config/pg_hba.conf:/usr/local/share/postgresql/pg_hba.conf'
+            
+      - "${SSL_PRIVATE_PATH}/postgres:/etc/ssl/postgres:ro"
+
+    env_file:
+      - './environment/.env.postgres'
+
+    command: -c config_file=/usr/local/share/postgresql/postgresql.conf
+
+    ports:
+      - '5432:5432'
