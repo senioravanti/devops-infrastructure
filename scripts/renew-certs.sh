@@ -53,4 +53,5 @@ done <<-EOL
 	/etc/ssl/private/${DOMAIN}/postgres;70:70;false
 	/etc/ssl/private/${DOMAIN}/mongodb;999:999;true
 	/etc/ssl/private/${DOMAIN}/valkey;999:1000;false
+	/etc/ssl/private/${DOMAIN}/nginx;root:root;false
 EOL

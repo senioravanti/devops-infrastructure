@@ -60,12 +60,11 @@ services:
         condition: service_healthy
 
     volumes:
-      - './nginx/config/nginx.conf:/etc/nginx/nginx.conf:ro'
-      - "${SSL_LETSENCRYPT_PATH}:/etc/ssl/nginx:ro"
+      - './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
+      - "${SSL_PRIVATE_PATH}/nginx:/etc/ssl/nginx:ro"
 
     ports:
-      - '9090:9090'
-      - '9091:9091'
+      - '443:443'
 
   mongodb:
     image: "mongo:${MONGODB_VERSION}-noble"
@@ -84,7 +83,7 @@ services:
 
     volumes:
       - 'devops-infrastructure-mongodb-data:/data/db'
-      - './mongodb/config/mongodb.conf:/etc/mongodb.conf:ro'
+      - './mongodb/mongodb.conf:/etc/mongodb.conf:ro'
       - "${SSL_PRIVATE_PATH}/mongodb:/etc/ssl/mongodb:ro"
 
     env_file:
@@ -143,8 +142,8 @@ services:
     volumes:
       - 'devops-infrastructure-postgres-data:/var/lib/postgresql/data'
       
-      - './postgres/config/postgresql.conf:/usr/local/share/postgresql/postgresql.conf'
-      - './postgres/config/pg_hba.conf:/usr/local/share/postgresql/pg_hba.conf'
+      - './postgres/postgresql.conf:/usr/local/share/postgresql/postgresql.conf'
+      - './postgres/pg_hba.conf:/usr/local/share/postgresql/pg_hba.conf'
             
       - "${SSL_PRIVATE_PATH}/postgres:/etc/ssl/postgres:ro"
 
