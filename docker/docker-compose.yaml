@@ -7,6 +7,23 @@ volumes:
   devops-infrastructure-valkey-data:
   devops-infrastructure-postgres-data:
 
+networks:
+  auth-service-net:
+    name: nginx-auth-service-net
+    external: true
+  caffegql-net:
+    name: nginx-caffegql-net
+    external: true
+  s3-service-net:
+    name: nginx-s3-service-net
+    external: true
+  caffe-net:
+    name: nginx-caffe-net
+    external: true
+  helpdesk-bot-net:
+    name: nginx-helpdesk-bot-net
+    external: true
+
 services:
   portainer:
     image: 'portainer/portainer-ce:lts'
@@ -43,9 +60,6 @@ services:
     env_file:
       - './environment/.env.minio'
 
-    environment:
-      MINIO_BROWSER: on
-
     volumes:
       - 'devops-infrastructure-s3-data:/bitnami/minio/data'
 
@@ -61,7 +75,17 @@ services:
 
     volumes:
       - './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
+      - './nginx/proxy.conf:/etc/nginx/proxy.conf:ro'
+      - './nginx/server_https2.conf:/etc/nginx/server_https2.conf:ro'
       - "${SSL_PRIVATE_PATH}/nginx:/etc/ssl/nginx:ro"
+
+    networks:
+      default:
+      auth-service-net:
+      caffegql-net:
+      s3-service-net:
+      caffe-net:
+      helpdesk-bot-net:
 
     ports:
       - '443:443'
