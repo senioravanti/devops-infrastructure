@@ -1,2 +1,2 @@
 .env*
-docker/vault/secrets
+*/garage/config/*.toml

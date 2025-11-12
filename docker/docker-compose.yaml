@@ -2,7 +2,12 @@ name: devops-infrastructure
 
 volumes:
   devops-infrastructure-portainer-data:
+  
   devops-infrastructure-s3-data:
+  
+  devops-infrastructure-garage-meta:
+  devops-infrastructure-garage-data:
+
   devops-infrastructure-mongodb-data:
   devops-infrastructure-valkey-data:
   devops-infrastructure-postgres-data:
@@ -44,34 +49,22 @@ services:
       - '8000:8000'
       - '9443:9443'
 
-  minio:
-    image: 'bitnami/minio:2025'
-    container_name: 'devops-infrastructure-s3'
+  garage:
+    image: 'dxflrs/garage:v2.1.0'
+    container_name: 'devops-infrastructure-garage'
 
     restart: 'on-failure:3'
 
-    healthcheck:
-      test: curl -sSi http://127.0.0.1:9000/minio/health/live
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-
-    env_file:
-      - './environment/.env.minio'
-
     volumes:
-      - 'devops-infrastructure-s3-data:/bitnami/minio/data'
+      - './garage/config/garage.toml:/etc/garage.toml'
+      - 'devops-infrastructure-garage-meta:/var/lib/garage/meta'
+      - 'devops-infrastructure-garage-data:/var/lib/garage/data'
 
   webserver:
     image: 'nginx:1.29.0-alpine3.22'
     container_name: 'devops-infrastructure-webserver'
 
     restart: unless-stopped
-
-    depends_on:
-      minio:
-        condition: service_healthy
 
     volumes:
       - './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
