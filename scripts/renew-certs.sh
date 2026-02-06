@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+SSL_LETSENCRYPT_PATH="/etc/letsencrypt/live/${DOMAIN}"
+
 if [ ! -d /opt/certbot/ ]; then
   echo 'installing certbot ...'
   mkdir /opt/certbot/
@@ -9,8 +11,6 @@ if [ ! -d /opt/certbot/ ]; then
   /opt/certbot/bin/pip install certbot
   ln -s /opt/certbot/bin/certbot /usr/bin/certbot
 fi
-
-certbot renew -q
 
 if [ -z "$SSL_LETSENCRYPT_CA_PATH" ]; then
   SSL_LETSENCRYPT_CA_PATH='/etc/ssl/certs/isrgrootx1.pem'
@@ -28,15 +28,15 @@ process_certs() {
 
   echo "copy cert \`${SSL_PATH}/\` ..."
 
-  cp "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" "${SSL_PATH}/"
+  cp "${SSL_LETSENCRYPT_PATH}/fullchain.pem" "${SSL_PATH}/"
   chmod 644 "${SSL_PATH}/fullchain.pem"
     
   if [ "$IS_MERGE" == true ]; then
-    cp "/etc/letsencrypt/live/${DOMAIN}/cert.pem" "${SSL_PATH}/"
-    cat "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" >> "${SSL_PATH}/cert.pem"
+    cp "${SSL_LETSENCRYPT_PATH}/cert.pem" "${SSL_PATH}/"
+    cat "${SSL_LETSENCRYPT_PATH}/privkey.pem" >> "${SSL_PATH}/cert.pem"
     chmod 600 "${SSL_PATH}/cert.pem"
   else
-    cp "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" "${SSL_PATH}/"
+    cp "${SSL_LETSENCRYPT_PATH}/privkey.pem" "${SSL_PATH}/"
     chmod 600 "${SSL_PATH}/privkey.pem"
   fi
 
@@ -47,11 +47,11 @@ while IFS=';' read -r SSL_PATH SSL_OWNER IS_MERGE; do
   if [ ! -d "$SSL_PATH" ]; then
     echo "creating \`${SSL_PATH}/\` ..."
     mkdir "${SSL_PATH}/"
-    process_certs "$SSL_PATH" "$SSL_OWNER" "$IS_MERGE"
   fi
+  echo "processing \`${SSL_PATH}/\` ..."
+  process_certs "$SSL_PATH" "$SSL_OWNER" "$IS_MERGE"
 done <<-EOL
 	/etc/ssl/private/${DOMAIN}/postgres;70:70;false
 	/etc/ssl/private/${DOMAIN}/mongodb;999:999;true
-	/etc/ssl/private/${DOMAIN}/valkey;999:1000;false
 	/etc/ssl/private/${DOMAIN}/nginx;root:root;false
 EOL
