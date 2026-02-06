@@ -28,6 +28,12 @@ networks:
   helpdesk-bot-net:
     name: nginx-helpdesk-bot-net
     external: true
+  marketplace-backend-net:
+    name: nginx-marketplace-backend-net
+    external: true
+  marketplace-frontend-net:
+    name: nginx-marketplace-frontend-net
+    external: true
 
 services:
   portainer:
@@ -60,6 +66,7 @@ services:
       - 'devops-infrastructure-garage-meta:/var/lib/garage/meta'
       - 'devops-infrastructure-garage-data:/var/lib/garage/data'
 
+# docker compose down webserver && docker compose up -d webserver 
   webserver:
     image: 'nginx:1.29.0-alpine3.22'
     container_name: 'devops-infrastructure-webserver'
@@ -79,6 +86,8 @@ services:
       s3-service-net:
       caffe-net:
       helpdesk-bot-net:
+      marketplace-backend-net:
+      marketplace-frontend-net:
 
     ports:
       - '443:443'
