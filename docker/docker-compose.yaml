@@ -3,8 +3,6 @@ name: devops-infrastructure
 volumes:
   devops-infrastructure-portainer-data:
   
-  devops-infrastructure-s3-data:
-  
   devops-infrastructure-garage-meta:
   devops-infrastructure-garage-data:
 
@@ -12,27 +10,18 @@ volumes:
   devops-infrastructure-valkey-data:
   devops-infrastructure-postgres-data:
 
+  devops-infrastructure-rabbitmq-data:
+  devops-infrastructure-rabbitmq-log:
+
 networks:
-  auth-service-net:
-    name: nginx-auth-service-net
-    external: true
-  caffegql-net:
-    name: nginx-caffegql-net
-    external: true
-  s3-service-net:
-    name: nginx-s3-service-net
+  helpdesk-net:
+    name: nginx-helpdesk-net
     external: true
   caffe-net:
     name: nginx-caffe-net
     external: true
-  helpdesk-bot-net:
-    name: nginx-helpdesk-bot-net
-    external: true
-  marketplace-backend-net:
-    name: nginx-marketplace-backend-net
-    external: true
-  marketplace-frontend-net:
-    name: nginx-marketplace-frontend-net
+  immich-net:
+    name: nginx-immich-net
     external: true
 
 services:
@@ -40,67 +29,83 @@ services:
     image: 'portainer/portainer-ce:lts'
     container_name: devops-infrastructure-portainer
 
-    restart: unless-stopped
+    restart: always
 
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'devops-infrastructure-portainer-data:/data'
-      - "${SSL_LETSENCRYPT_PATH}:/certs:ro"
+      # - "${SSL_LETSENCRYPT_PATH}:/certs:ro"
 
+    # command: >
+    #   --sslcert /certs/fullchain.pem
+    #   --sslkey /certs/privkey.pem
     command: >
-      --sslcert /certs/fullchain.pem
-      --sslkey /certs/privkey.pem
+      --admin-password '$PORTAINER_PASSWORD'
 
     ports:
+      # TCP
       - '8000:8000'
+      # HTTPS
       - '9443:9443'
+      # HTTP
+      - '9000:9000'
 
   garage:
-    image: 'dxflrs/garage:v2.1.0'
+    image: "dxflrs/garage:${GARAGE_TAG}"
     container_name: 'devops-infrastructure-garage'
 
-    restart: 'on-failure:3'
+    restart: 'always'
 
     volumes:
       - './garage/config/garage.toml:/etc/garage.toml'
       - 'devops-infrastructure-garage-meta:/var/lib/garage/meta'
       - 'devops-infrastructure-garage-data:/var/lib/garage/data'
+    
+    # Только в если не настроено tls
+    ports:
+      # для mc, awscli, s3cmd и других клиентов
+      - '3900:3900'
+      # трафик между узлами
+      # - '3901:3901'
+      # s3 web трафик
+      # - '3902:3902'
+      # admin api
+      # - '3903:3903' 
+      # k2v
+      # - '3904:3904'
 
-# docker compose down webserver && docker compose up -d webserver 
+  # docker compose down webserver && docker compose up -d webserver 
   webserver:
-    image: 'nginx:1.29.0-alpine3.22'
+    image: "nginx:${NGINX_TAG}"
     container_name: 'devops-infrastructure-webserver'
 
-    restart: unless-stopped
+    restart: always
 
     volumes:
       - './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
+      - './nginx/ws.conf:/etc/nginx/ws.conf:ro'
       - './nginx/proxy.conf:/etc/nginx/proxy.conf:ro'
       - './nginx/server_https2.conf:/etc/nginx/server_https2.conf:ro'
-      - "${SSL_PRIVATE_PATH}/nginx:/etc/ssl/nginx:ro"
+      - "${SSL_PATH}/nginx:/etc/ssl/nginx:ro"
 
     networks:
       default:
-      auth-service-net:
-      caffegql-net:
-      s3-service-net:
+      helpdesk-net:
       caffe-net:
-      helpdesk-bot-net:
-      marketplace-backend-net:
-      marketplace-frontend-net:
+      immich-net:
 
     ports:
       - '443:443'
 
   mongodb:
-    image: "mongo:${MONGODB_VERSION}-noble"
+    image: "mongo:${MONGO_TAG}"
     container_name: 'devops-infrastructure-mongodb'
 
-    restart: 'on-failure:3'
+    restart: 'always'
     
     healthcheck:
       test: |
-        mongosh "mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@senioravanti.ru:27017/?tls=true" \
+        mongosh "mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@0.0.0.0:27017" \
           --eval 'db.runCommand("ping").ok' --quiet
       interval: 30s
       timeout: 15s
@@ -110,7 +115,8 @@ services:
     volumes:
       - 'devops-infrastructure-mongodb-data:/data/db'
       - './mongodb/mongodb.conf:/etc/mongodb.conf:ro'
-      - "${SSL_PRIVATE_PATH}/mongodb:/etc/ssl/mongodb:ro"
+
+      - "${SSL_PATH}/mongodb:/etc/ssl/mongodb:ro"
 
     env_file:
       - './environment/.env.mongodb'
@@ -121,42 +127,44 @@ services:
       - '27017:27017'
 
   valkey:
-    image: "valkey/valkey:${VALKEY_VERSION}-alpine3.22"
+    image: "valkey/valkey:${VALKEY_TAG}"
     container_name: 'devops-infrastructure-valkey'
 
-    restart: 'on-failure:3'
+    restart: always
 
     healthcheck:
       test: |
-        valkey-cli -h senioravanti.ru -a "$$VALKEY_PASSWORD" --no-auth-warning -t 5 \
-          --tls --cacert /etc/ssl/certs/isrgrootx1.pem --json ping \
-          | grep -q PONG
+        valkey-cli -a "$$VALKEY_PASSWORD" --no-auth-warning \
+          --tls --cacert /etc/ssl/certs/isrgrootx1.pem \
+          ping || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
 
+    privileged: true
     env_file:
       - './environment/.env.valkey'
 
     volumes:
       - 'devops-infrastructure-valkey-data:/data'
-      - './valkey/scripts/docker-valkey-entrypoint.sh:/usr/local/bin/docker-valkey-entrypoint.sh'
-      - "${SSL_PRIVATE_PATH}/valkey:/etc/ssl/valkey:ro"
-      - "${SSL_LETSENCRYPT_CA_PATH}:/etc/ssl/certs/isrgrootx1.pem:ro"
+      - './valkey/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh'
 
-    command: 'docker-valkey-entrypoint.sh'
+      - "${SSL_PATH}/valkey:/etc/ssl/valkey:ro"
+      - "/etc/ssl/certs/isrgrootx1.pem:/etc/ssl/certs/isrgrootx1.pem:ro"
+
+    command: 'custom-entrypoint.sh'
 
     ports:
       - '6379:6379'
 
   postgres:
-    image: "postgres:$POSTGRES_TAG"
+    image: "postgres:${POSTGRES_TAG}"
     container_name: 'devops-infrastructure-postgres'
 
-    restart: 'on-failure:3'
+    restart: always
 
-    shm_size: 256mb
+    shm_size: 1g
 
     healthcheck:
       test: pg_isready -U postgres -d postgres
@@ -171,7 +179,7 @@ services:
       - './postgres/postgresql.conf:/usr/local/share/postgresql/postgresql.conf'
       - './postgres/pg_hba.conf:/usr/local/share/postgresql/pg_hba.conf'
             
-      - "${SSL_PRIVATE_PATH}/postgres:/etc/ssl/postgres:ro"
+      - "${SSL_PATH}/postgres:/etc/ssl/postgres:ro"
 
     env_file:
       - './environment/.env.postgres'
@@ -180,3 +188,32 @@ services:
 
     ports:
       - '5432:5432'
+  
+  rabbitmq:
+    image: "rabbitmq:${RABBITMQ_TAG}"
+    container_name: 'devops-infrastructure-rabbitmq'
+    hostname: rabbit
+    
+    restart: always
+    
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+    volumes:
+      - './rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf'
+      - 'devops-infrastructure-rabbitmq-data:/var/lib/rabbitmq'
+      - 'devops-infrastructure-rabbitmq-log:/var/log/rabbitmq'
+      
+      - "${SSL_PATH}/rabbitmq:/etc/ssl/rabbitmq:ro"
+
+    env_file:
+      - './environment/.env.rabbitmq'
+
+    ports:
+      - '5671:5671'
+      - '5672:5672'
+      - '15672:15672'

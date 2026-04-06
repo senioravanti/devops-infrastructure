@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -eu
+
+database=${DATABASE:-postgres}
+schema=${SCHEMA:-public}
+PGPASSWORD="${ROOT_USER_PASSWORD}" \
+psql -h "${HOST:-localhost}" -p "${PORT:-5432}" \
+  -U "${ROOT_USER_NAME:-postgres}" "${database}" <<EOF
+BEGIN;
+
+CREATE USER ${NEW_USER_NAME} PASSWORD '${NEW_USER_PASSWORD}';
+GRANT CONNECT ON DATABASE ${database} TO ${NEW_USER_NAME};
+
+GRANT USAGE ON SCHEMA ${schema} TO ${NEW_USER_NAME};
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA ${schema} TO ${NEW_USER_NAME};
+REVOKE DELETE, TRUNCATE ON ALL TABLES IN SCHEMA ${schema} FROM ${NEW_USER_NAME};
+
+COMMIT;
+EOF
