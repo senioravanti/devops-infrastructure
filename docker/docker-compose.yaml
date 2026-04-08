@@ -23,6 +23,18 @@ networks:
   immich-net:
     name: nginx-immich-net
     external: true
+  garage-net:
+    name: garage-infra-net
+    external: true
+  postgres-net:
+    name: postgres-infra-net
+    external: true
+  rabbit-net: 
+    name: rabbit-infra-net
+    external: true
+  valkey-net: 
+    name: valkey-infra-net
+    external: true
 
 services:
   portainer:
@@ -74,6 +86,10 @@ services:
       # k2v
       # - '3904:3904'
 
+    networks:
+      default:
+      garage-net:
+
   # docker compose down webserver && docker compose up -d webserver 
   webserver:
     image: "nginx:${NGINX_TAG}"
@@ -86,6 +102,7 @@ services:
       - './nginx/ws.conf:/etc/nginx/ws.conf:ro'
       - './nginx/proxy.conf:/etc/nginx/proxy.conf:ro'
       - './nginx/server_https2.conf:/etc/nginx/server_https2.conf:ro'
+
       - "${SSL_PATH}/nginx:/etc/ssl/nginx:ro"
 
     networks:
@@ -116,7 +133,7 @@ services:
       - 'devops-infrastructure-mongodb-data:/data/db'
       - './mongodb/mongodb.conf:/etc/mongodb.conf:ro'
 
-      - "${SSL_PATH}/mongodb:/etc/ssl/mongodb:ro"
+      # - "${SSL_PATH}/mongodb:/etc/ssl/mongodb:ro"
 
     env_file:
       - './environment/.env.mongodb'
@@ -135,7 +152,6 @@ services:
     healthcheck:
       test: |
         valkey-cli -a "$$VALKEY_PASSWORD" --no-auth-warning \
-          --tls --cacert /etc/ssl/certs/isrgrootx1.pem \
           ping || exit 1
       interval: 10s
       timeout: 5s
@@ -151,12 +167,18 @@ services:
       - './valkey/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh'
 
       - "${SSL_PATH}/valkey:/etc/ssl/valkey:ro"
-      - "/etc/ssl/certs/isrgrootx1.pem:/etc/ssl/certs/isrgrootx1.pem:ro"
 
     command: 'custom-entrypoint.sh'
 
     ports:
+      # tls, доступен из вне
+      - '6378:6378'
+      # внутренний
       - '6379:6379'
+    
+    networks:
+      default:
+      valkey-net: 
 
   postgres:
     image: "postgres:${POSTGRES_TAG}"
@@ -174,7 +196,7 @@ services:
       start_period: 5s
 
     volumes:
-      - 'devops-infrastructure-postgres-data:/var/lib/postgresql/data'
+      - 'devops-infrastructure-postgres-data:/var/lib/postgresql'
       
       - './postgres/postgresql.conf:/usr/local/share/postgresql/postgresql.conf'
       - './postgres/pg_hba.conf:/usr/local/share/postgresql/pg_hba.conf'
@@ -188,6 +210,10 @@ services:
 
     ports:
       - '5432:5432'
+
+    networks:
+      default:
+      postgres-net:
   
   rabbitmq:
     image: "rabbitmq:${RABBITMQ_TAG}"
@@ -214,6 +240,13 @@ services:
       - './environment/.env.rabbitmq'
 
     ports:
+      # tls, доступен из вне
       - '5671:5671'
+      # внутренний
       - '5672:5672'
+      # админ-панель
       - '15672:15672'
+
+    networks:
+      default:
+      rabbit-net: 
