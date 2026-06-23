@@ -14,6 +14,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -d|--database) database="$2"; shift 2; ;;
     -H|--host) host="$2"; shift 2 ;;
+    -p|--port) port="$2"; shift 2 ;;
     -s|--schema) schema="$2"; shift 2 ;;
     -U|--user) new_user_name="$2"; shift 2 ;;
     -S|--tls) tls='sslmode=require'; shift ;;
@@ -26,7 +27,8 @@ if [[ -z "${new_user_name}" ]]; then
   new_user_name="${database}_user"
 fi
 
-psql "postgresql://postgres:${ROOT_USER_PASSWORD}@${host}:${port}/${database}?${tls}" <<EOF
+PGPASSWORD="${ROOT_USER_PASSWORD}" \
+psql "postgresql://${ROOT_USER_NAME:-postgres}@${host}:${port}/${database}?${tls}" <<EOF
 BEGIN;
 
 CREATE USER ${new_user_name} PASSWORD '${NEW_USER_PASSWORD}';
