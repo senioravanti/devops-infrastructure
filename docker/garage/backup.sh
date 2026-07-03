@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 set -u
 
-FILES=$(mc ls --recursive "$ALIAS" | awk '{ print $NF }')
-for FILE in $FILES; do
-  mc get "$ALIAS/$FILE" "$OUT/$FILE" &
-done
+mc ls --recursive --json "${ALIAS}" \
+  | jq -r .key \
+  | parallel \
+    --env ALIAS,OUT \
+    --line-buffer --bar -j16 \
+    'mc get "${ALIAS}/{}" "${OUT}/{}"'
