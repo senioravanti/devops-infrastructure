@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
+set -u
 
-cd "$OUT" || exit 1
+: "${ALIAS:?is not set}"
+cd "${IN}" || exit 1
 
-find . -type f -print | while IFS= read -r filepath; do
-  RELPATH="${filepath#./}"
-  BUCKET="${RELPATH%%/*}"
-  echo "uploading \`$RELPATH\` file"
-  mc mb --ignore-existing "$ALIAS/$BUCKET" > /dev/null
-  mc put "$filepath" "$ALIAS/$RELPATH" > /dev/null &
-done
+find . -type f -print \
+  | parallel --env ALIAS -j$(nproc --all) '
+    path={}
+    relpath="${path#./}"
+    bucket="${relpath%%/*}"
+    echo "uploading \`${relpath}\` file"
+    mc mb --ignore-existing "${ALIAS}/${bucket}"
+    mc put "${path}" "${ALIAS}/${relpath}"
+  '
