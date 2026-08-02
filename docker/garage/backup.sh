@@ -1,11 +1,13 @@
 #!/usr/bin/env sh
 set -u
 
-: "${OUT:?dir is not set}"
-
-mc ls --recursive --json "${ALIAS}" \
+: "${1:?alias is not set}"
+: "${2:?out dir is not set}"
+als="$1"
+out="$2"
+mc ls --recursive --json "${als}" \
   | jq -r .key \
+  | tr -d '\r' \
   | parallel \
-    --env ALIAS,OUT \
     --line-buffer --bar -j$(nproc --all) \
-    'mc get "${ALIAS}/{}" "${OUT}/{}"'
+    mc get "${als}/{}" "${out}/{}"
