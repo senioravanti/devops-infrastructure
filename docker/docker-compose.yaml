@@ -14,6 +14,9 @@ volumes:
   devops-infrastructure-rabbitmq-log:
 
 networks:
+  forgejo-net:
+    name: nginx-forgejo-net
+    external: true
   helpdesk-net:
     name: nginx-helpdesk-net
     external: true
@@ -110,6 +113,7 @@ services:
       helpdesk-net:
       caffe-net:
       immich-net:
+      forgejo-net:
 
     ports:
       - '443:443'

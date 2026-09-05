@@ -81,6 +81,7 @@ done <<EOL
 /etc/ssl/private/${domain}/postgres;70:70;2
 /etc/ssl/private/${domain}/mongodb;999:999;1
 /etc/ssl/private/${domain}/nginx;root:root;2
+/etc/ssl/private/${domain}/k3s;root:root;2
 /etc/ssl/private/${domain}/rabbitmq;100:101;3
 /etc/ssl/private/${domain}/valkey;999:1000;2
 EOL

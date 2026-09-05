@@ -1,0 +1,11 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-address-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.0.240-192.168.0.250 # Example IP range, adjust to your network's range
+  autoAssign: true
+  avoidBuggyIPs: true
+

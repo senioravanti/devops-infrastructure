@@ -1,0 +1,32 @@
+# https://cloudnative-pg.io/docs/1.30/samples/
+# https://cloudnative-pg.io/docs/assets/files/cluster-example-full-55a29cb6b289084bdb9fd6caf0ab62f5.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forgejo-postgres
+  namespace: forgejo
+
+spec:
+  # https://github.com/cloudnative-pg/postgres-containers/pkgs/container/postgresql
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.6-minimal-trixie
+  instances: 1
+  storage:
+    size: 10Gi
+    storageClass: 'local-path'
+  bootstrap:
+    initdb:
+      database: forgejo
+      owner: forgejo
+      secret:
+        name: forgejo-postgres-user-secret
+  enableSuperuserAccess: true
+  superuserSecret:
+    name: forgejo-postgres-secret
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
