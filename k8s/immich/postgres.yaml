@@ -1,0 +1,58 @@
+# https://cloudnative-pg.io/docs/1.30/samples/
+# https://cloudnative-pg.io/docs/assets/files/cluster-example-full-55a29cb6b289084bdb9fd6caf0ab62f5.yaml
+# https://github.com/immich-app/immich-charts/blob/main/local/cloudnative-pg.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-postgres
+  namespace: immich
+
+spec:
+  # https://github.com/cloudnative-pg/postgres-containers/pkgs/container/postgresql
+  imageName: git.senioravanti.ru/root/cnpg-postgresql:18-trixie-vchord
+  # imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+  # imageName: ghcr.io/immich-app/postgres:18-vectorchord1.1.1-pgvector0.8.5
+  instances: 1
+
+  postgresql:
+    shared_preload_libraries:
+      - "vchord.so"
+
+  ## This extension is loaded via the Database CRD at cloudnative-pg-database.yaml
+  # extensions:
+  #   - name: vchord
+  #     image:
+  #       reference: ghcr.io/tensorchord/vchord-scratch:pg18-v1.1.1
+  #     dynamic_library_path:
+  #       - /usr/lib/postgresql/18/lib
+  #     extension_control_path:
+  #       - /usr/share/postgresql/18/
+
+  storage:
+    size: 5Gi
+    storageClass: 'local-path'
+
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      secret:
+        name: immich-postgres-user-secret
+
+  managed:
+    roles:
+      - name: immich
+        comment: 'immich user'
+        login: true
+        passwordSecret:
+          name: immich-postgres-user-secret
+
+  # 1 milliCPU = 0.001CPU
+  # Ei, Pi, Ti, Gi, Mi, Ki
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
