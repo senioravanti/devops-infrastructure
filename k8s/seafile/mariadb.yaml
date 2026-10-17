@@ -1,0 +1,154 @@
+# https://mariadb.org/mariadb-in-kubernetes-with-mariadb-operator/
+
+# https://github.com/mariadb-operator/mariadb-operator/blob/main/examples/manifests/mariadb.yaml
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb
+  namespace: seafile
+
+spec:
+  image: mariadb:13.0-resolute
+  imagePullPolicy: IfNotPresent
+
+  rootPasswordSecretKeyRef:
+    name: seafile-secret
+    key: INIT_SEAFILE_MYSQL_ROOT_PASSWORD
+
+  port: 3306
+
+  storage:
+    size: 1Gi
+    storageClassName: 'local-path'
+
+  myCnf: |
+    [mariadb]
+    bind-address=*
+    default_storage_engine=InnoDB
+    binlog_format=row
+    innodb_autoinc_lock_mode=2
+    max_allowed_packet=256M
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  tls:
+    enabled: false
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: seafile-user
+  namespace: seafile
+
+spec:
+  # If you want the user to be created with a different name than the resource name
+  name: seafile
+  mariaDbRef:
+    name: mariadb
+
+  passwordSecretKeyRef:
+    name: seafile-secret
+    key: SEAFILE_MYSQL_DB_PASSWORD
+  # This field defaults to 10
+  maxUserConnections: 30
+  host: "%"
+  # Delete the resource in the database whenever the CR gets deleted.
+  # Alternatively, you can specify Skip in order to omit deletion.
+  cleanupPolicy: Delete
+  
+  # Require TLS when connecting with this user.
+  # See: https://mariadb.com/kb/en/securing-connections-for-client-and-server/#requiring-tls
+  # require:
+  #   issuer: "/CN=mariadb-ca"
+  #   subject: "/CN=mariadb-client"
+  
+  requeueInterval: 10h
+  retryInterval: 30s
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: ccnet-database
+  namespace: seafile
+
+spec:
+  # If you want the database to be created with a different name than the resource name
+  name: ccnet_db
+  mariaDbRef:
+    name: mariadb
+
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+  # Delete the resource in the database whenever the CR gets deleted.
+  # Alternatively, you can specify Skip in order to omit deletion.
+  cleanupPolicy: Delete
+  requeueInterval: 10h
+  retryInterval: 30s
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: seafile-database
+  namespace: seafile
+
+spec:
+  # If you want the database to be created with a different name than the resource name
+  name: seafile_db
+  mariaDbRef:
+    name: mariadb
+
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+  # Delete the resource in the database whenever the CR gets deleted.
+  # Alternatively, you can specify Skip in order to omit deletion.
+  cleanupPolicy: Delete
+  requeueInterval: 10h
+  retryInterval: 30s
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: seahub-database
+  namespace: seafile
+
+spec:
+  # If you want the database to be created with a different name than the resource name
+  name: seahub_db
+  mariaDbRef:
+    name: mariadb
+
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+  # Delete the resource in the database whenever the CR gets deleted.
+  # Alternatively, you can specify Skip in order to omit deletion.
+  cleanupPolicy: Delete
+  requeueInterval: 10h
+  retryInterval: 30s
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: grant
+  namespace: seafile
+
+spec:
+  mariaDbRef:
+    name: mariadb
+  privileges:
+    - "ALL PRIVILEGES"
+  database: "*"
+  table: "*"
+  username: seafile
+  grantOption: true
+  host: "%"
+  # Delete the resource in the database whenever the CR gets deleted.
+  # Alternatively, you can specify Skip in order to omit deletion.
+  cleanupPolicy: Delete
+  requeueInterval: 10h
+  retryInterval: 30s
