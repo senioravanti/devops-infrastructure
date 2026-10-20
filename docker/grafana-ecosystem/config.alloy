@@ -1,0 +1,130 @@
+// https://vincent.bernat.ch/en/blog/2026-prometheus-metrics-discovery-docker-labels
+// -------------------- Docker --------------------
+discovery.docker "DOCKER" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+// -------------------- Prometheus --------------------
+// In Alloy, targets are defined as sets of key-value pairs called labels.
+discovery.relabel "PROMETHEUS" {
+  // targets -> exported field -- The set of processes discovered on the local Linux OS.
+  targets = discovery.docker.DOCKER.targets
+  // Only select find-prime processes
+	rule {
+	// labels: ['metrics.enable=true']
+		source_labels = ["__meta_docker_container_label_metrics_enable"]
+		regex = `true`
+		action = "keep"
+	}
+	// When metrics.port is set, override __address__.
+	rule {
+    source_labels = ["__address__", "__meta_docker_container_label_metrics_port"]
+    regex         = `(.+):\d+;(.+)`
+    target_label  = "__address__"
+    replacement   = "$1:$2"
+	}
+	// Take the base name as service name
+	rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "service_name"
+    regex = ".*/(.*)$"
+    replacement   = "$1"
+    action        = "replace"
+  }
+  // If a container defines metrics.path, Alloy uses it. Otherwise, it defaults to /metrics:
+  rule {
+    // labels: ['metrics.path=/metrics']
+    source_labels = ["__meta_docker_container_label_metrics_path"]
+    regex         = `(.+)`
+    target_label  = "__metrics_path__"
+  }
+  rule {
+    source_labels = ["__metrics_path__"]
+    regex         = ""
+    target_label  = "__metrics_path__"
+    replacement   = "/metrics"
+  }
+}
+
+prometheus.remote_write "PROMETHEUS_LOCAL" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+prometheus.scrape "DOCKER" {
+  targets         = discovery.relabel.PROMETHEUS.output
+  forward_to      = [prometheus.remote_write.PROMETHEUS_LOCAL.receiver]
+  scrape_interval = "15s"
+}
+
+// -------------------- Pyroscope --------------------
+// https://github.com/grafana/pyroscope/blob/main/examples/grafana-alloy-auto-instrumentation/java/docker/config.alloy
+// https://github.com/grafana/grafana-by-example/blob/main/pyroscope/orig-alloy-docker-config.river
+discovery.process "PROCESSES" {
+  join = discovery.docker.DOCKER.targets
+  refresh_interval = "15s"
+  discover_config {
+    exe          = true
+    commandline  = true
+    container_id = true
+  }
+}
+
+discovery.relabel "PYROSCOPE" {
+  targets = discovery.process.PROCESSES.targets
+  // Только Java-процессы.
+  rule {
+    source_labels = ["__meta_process_exe"]
+    action        = "keep"
+    regex         = ".*/java$"
+  }
+  // Только контейнеры с profiling.enable=true.
+	rule {
+		source_labels = ["__meta_docker_container_label_profiling_enable"]
+		regex = `true`
+		action = "keep"
+	}
+  // Имя контейнера без начального /.
+	rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "service_name"
+    regex = ".*/(.*)$"
+    replacement   = "$1"
+    action        = "replace"
+  }
+}
+
+// https://grafana.com/docs/alloy/latest/reference/components/pyroscope/pyroscope.write/
+pyroscope.write "PYROSCOPE_LOCAL" {
+  // Send metrics to a locally running Pyroscope instance.
+  endpoint {
+    url = "http://pyroscope:4040"
+
+    // To send data to Grafana Cloud you'll need to provide username and password.
+    // basic_auth {
+    //   username = "myuser"
+    //   password = "mypassword"
+    // }
+  }
+  // external_labels = {
+  //   "env" = "example",
+  // }
+}
+
+// https://grafana.com/docs/alloy/latest/reference/components/pyroscope/pyroscope.java/
+pyroscope.java "PYROSCOPE_JAVA" {
+  profiling_config {
+    interval = "15s"
+    alloc = "512k"
+    cpu = true
+    event = "wall"
+    per_thread = true
+    lock = "10ms"
+    sample_rate = 100
+  }
+  // receiver -> exported field
+  forward_to = [pyroscope.write.PYROSCOPE_LOCAL.receiver]
+  targets = discovery.relabel.PYROSCOPE.output
+}

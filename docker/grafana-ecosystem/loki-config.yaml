@@ -1,0 +1,71 @@
+# https://grafana.com/docs/loki/latest/configure/
+auth_enabled: false
+
+server:
+  http_listen_address: 0.0.0.0
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+
+memberlist:
+  join_members: ["read", "write", "backend"]
+  dead_node_reclaim_time: 30s
+  gossip_to_dead_nodes_time: 15s
+  left_ingesters_timeout: 30s
+  bind_addr: ['0.0.0.0']
+  bind_port: 7946
+  gossip_interval: 2s
+
+schema_config:
+  configs:
+    - from: 2023-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+common:
+  path_prefix: /loki
+  replication_factor: 1
+  compactor_address: http://backend:3100
+  storage:
+    s3:
+      endpoint: "${S3_ENDPOINT}"
+      region: 'us-east-1'
+      insecure: true
+      bucketnames: loki-data
+      access_key_id: "${S3_ACCESS_KEY}"
+      secret_access_key: "${S3_SECRET_KEY}"
+      s3forcepathstyle: true
+  ring:
+    kvstore:
+      store: memberlist
+ruler:
+  storage:
+    s3:
+      bucketnames: loki-ruler
+
+limits_config:
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 64
+  ingestion_burst_size_mb: 72
+  max_streams_per_user: 50000
+  max_line_size: 256kb
+  # обрезает строки, размер которых превышает max_line_size
+  max_line_size_truncate: true
+  # срок хранения логов -> 8 недель
+  retention_period: 8w
+  # максимальная глубина запросов (ретроспектива, просмотр назад, отчётный период) -> 8 недель
+  max_query_lookback: 8w
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: s3
+
+query_scheduler:
+  use_scheduler_ring: false
