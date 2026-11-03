@@ -571,7 +571,7 @@ gitea:
     ## @param gitea.config.server [object] General server settings
     server:
       PROTOCOL: http
-      DOMAIN: git.senioravanti.ru
+      DOMAIN: senioravanti.ru
       ROOT_URL: https://git.senioravanti.ru/
       OFFLINE_MODE: false
       SSH_PORT: 2222 # rootful image

@@ -1,0 +1,36 @@
+# https://oneuptime.com/blog/post/2026-02-08-how-to-run-jellyfin-in-docker-for-media-streaming/view
+# https://jellyfin.org/docs/general/installation/container/?method=docker-compose
+name: jellyfin
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:
+
+# Recommended directory structure for movies
+# /mnt/media/movies/
+# Movie Name (2024)/
+#   Movie Name (2024).mkv
+services:
+  jellyfin:
+    image: "jellyfin/jellyfin:${JELLYFIN_VERSION}"
+    container_name: jellyfin
+    restart: 'unless-stopped'
+    # Optional - specify the uid and gid you would like Jellyfin to use instead of root
+    user: '1000:1000'
+    ports:
+      # Web UI port
+      - 8096:8096
+      # Local service discovery port
+      - 7359:7359/udp
+    volumes:
+      - 'jellyfin-config:/config'
+      - 'jellyfin-cache:/cache'
+      - '~/media/movies:/media/movies:ro'
+      # Optional - extra fonts to be used during transcoding with subtitle burn-in
+      #- type: bind
+      # source: /path/to/fonts
+      # target: /usr/local/share/fonts/custom
+      # read_only: true
+    devices:
+      # Pass through the Intel GPU render device
+      - /dev/dri/renderD128:/dev/dri/renderD128
